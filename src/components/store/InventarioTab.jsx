@@ -9,13 +9,16 @@ import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { playBeepSuccess } from '../../utils/audio';
 import BarcodeScannerModal from '../common/BarcodeScannerModal';
 import ImportarInventarioModal from './ImportarInventarioModal';
+import AlertBellButton from '../common/AlertBellButton';
 
 export default function InventarioTab({
   products = [],
   movements = [],
   role = 'dueno',
   onSaveProduct,
-  onImportProducts
+  onImportProducts,
+  alertCount = 0,
+  onOpenAlerts
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
@@ -279,6 +282,9 @@ export default function InventarioTab({
             <button type="button" className="btn p" onClick={openNewProduct} style={{ minHeight: '44px' }}>
               Nuevo producto
             </button>
+          )}
+          {onOpenAlerts && (
+            <AlertBellButton alertCount={alertCount} onOpenAlerts={onOpenAlerts} />
           )}
         </div>
       </div>

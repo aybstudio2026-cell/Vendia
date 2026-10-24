@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { money } from '../../constants/palettes';
 import { IconTag, IconVender, IconReceipt, IconAlertTriangle } from '../common/Icons';
+import AlertBellButton from '../common/AlertBellButton';
 import {
   getPeruDateIso,
   formatPeruDate,
@@ -16,7 +17,9 @@ export default function ResumenTab({
   weekData = [],
   resumenData = null,
   paymentMethods = [],
-  onSelectSale
+  onSelectSale,
+  alertCount = 0,
+  onOpenAlerts
 }) {
   const [chartMode, setChartMode] = useState('horas'); // 'horas' | 'transacciones'
   const todayIso = getPeruDateIso();
@@ -210,7 +213,7 @@ export default function ResumenTab({
 
   return (
     <div>
-      <div className="bar" style={{ marginBottom: '24px' }}>
+      <div className="bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '30px', fontWeight: '800', letterSpacing: '-0.025em', margin: '0 0 6px', color: 'var(--ink)' }}>
             Buenos días, {displayName}
@@ -223,6 +226,9 @@ export default function ResumenTab({
             })}
           </p>
         </div>
+        {onOpenAlerts && (
+          <AlertBellButton alertCount={alertCount} onOpenAlerts={onOpenAlerts} />
+        )}
       </div>
 
       {/* FILA 1: 4 KPI Cards */}

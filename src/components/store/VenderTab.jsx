@@ -7,6 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { playBeepSuccess, playBeepError } from '../../utils/audio';
 import BarcodeScannerModal from '../common/BarcodeScannerModal';
+import AlertBellButton from '../common/AlertBellButton';
 
 export default function VenderTab({
   products = [],
@@ -18,7 +19,9 @@ export default function VenderTab({
   storeName = "Minimarket La Esquina",
   userName = "Cajero",
   storeLogo = null,
-  paymentMethods = ['Efectivo', 'Yape / Plin', 'Tarjeta', 'Transferencia']
+  paymentMethods = ['Efectivo', 'Yape / Plin', 'Tarjeta', 'Transferencia'],
+  alertCount = 0,
+  onOpenAlerts
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
@@ -855,6 +858,9 @@ export default function VenderTab({
             <IconMaximize size={16} />
             <span>Modo Cajero (F11)</span>
           </button>
+          {onOpenAlerts && (
+            <AlertBellButton alertCount={alertCount} onOpenAlerts={onOpenAlerts} />
+          )}
         </div>
       </div>
 

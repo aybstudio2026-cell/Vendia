@@ -6,6 +6,7 @@ import Sidebar from './components/common/Sidebar';
 import TopBanner from './components/common/TopBanner';
 import Toast from './components/common/Toast';
 import PaletteModal from './components/common/PaletteModal';
+import GlobalSearchModal from './components/common/GlobalSearchModal';
 import Skeleton from './components/common/Skeleton';
 import Login from './components/auth/Login';
 import LoginSplashScreen from './components/common/LoginSplashScreen';
@@ -242,9 +243,22 @@ function AppContent() {
   // Estado común
   const [toastMessage, setToastMessage] = useState('');
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('vendia_sidebar_collapsed') === 'true';
   });
+
+  // Atajo de teclado global Ctrl+K / Cmd+K para abrir el buscador de productos y tickets
+  useEffect(() => {
+    function handleGlobalKeyDown(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsGlobalSearchOpen((prev) => !prev);
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const handleToggleSidebar = () => {
     setIsSidebarCollapsed((prev) => {
@@ -2047,25 +2061,28 @@ function AppContent() {
 
         {/* Área Principal de Contenido */}
         <div className="main">
-          <Header
-            isSuperadmin={appMode === 'superadmin'}
-            storeName={storeName}
-            storeLogo={appMode === 'tienda' ? storeLogo : null}
-            userName={userName}
-            role={role}
-            onRoleChange={isDemoMode ? handleRoleChange : undefined}
-            alertCount={unreadAlertCount}
-            onOpenAlerts={() => setIsAlertsOpen(true)}
-            onOpenPalette={() => setIsPaletteOpen(true)}
-            onSignOut={signOut}
-            isSidebarCollapsed={isSidebarCollapsed}
-            onToggleSidebar={handleToggleSidebar}
-            onTriggerSplash={triggerLoginSplash}
-            products={products}
-            sales={sales}
-            onSelectTab={setStoreTab}
-            onSelectSale={(s) => setActiveSaleModal({ sale: s, isReceipt: false })}
-          />
+          {/* Header solo en modo superadmin (en tienda se retira el navbar superior según diseño del usuario) */}
+          {appMode === 'superadmin' && (
+            <Header
+              isSuperadmin={true}
+              storeName={storeName}
+              storeLogo={null}
+              userName={userName}
+              role={role}
+              onRoleChange={isDemoMode ? handleRoleChange : undefined}
+              alertCount={unreadAlertCount}
+              onOpenAlerts={() => setIsAlertsOpen(true)}
+              onOpenPalette={() => setIsPaletteOpen(true)}
+              onSignOut={signOut}
+              isSidebarCollapsed={isSidebarCollapsed}
+              onToggleSidebar={handleToggleSidebar}
+              onTriggerSplash={triggerLoginSplash}
+              products={products}
+              sales={sales}
+              onSelectTab={setStoreTab}
+              onSelectSale={(s) => setActiveSaleModal({ sale: s, isReceipt: false })}
+            />
+          )}
 
           {/* Banner de atención de cobros en modo superadmin */}
           {appMode === 'superadmin' && pendingAttentionCount > 0 && (
@@ -2107,6 +2124,8 @@ function AppContent() {
                   resumenData={resumenData}
                   paymentMethods={storePaymentMethods}
                   onSelectSale={(s) => setActiveSaleModal({ sale: s, isReceipt: false })}
+                  alertCount={unreadAlertCount}
+                  onOpenAlerts={() => setIsAlertsOpen(true)}
                 />
               )}
 
@@ -2122,6 +2141,8 @@ function AppContent() {
                   userName={userName}
                   storeLogo={storeLogo}
                   paymentMethods={storePaymentMethods}
+                  alertCount={unreadAlertCount}
+                  onOpenAlerts={() => setIsAlertsOpen(true)}
                 />
               )}
 
@@ -2132,6 +2153,8 @@ function AppContent() {
                   role={role}
                   onSaveProduct={handleSaveProduct}
                   onImportProducts={handleImportProducts}
+                  alertCount={unreadAlertCount}
+                  onOpenAlerts={() => setIsAlertsOpen(true)}
                 />
               )}
 
@@ -2145,6 +2168,8 @@ function AppContent() {
                   onSelectSale={(s) => setActiveSaleModal({ sale: s, isReceipt: false })}
                   onVoidSale={handleVoidSale}
                   paymentMethods={storePaymentMethods}
+                  alertCount={unreadAlertCount}
+                  onOpenAlerts={() => setIsAlertsOpen(true)}
                 />
               )}
 
@@ -2153,6 +2178,8 @@ function AppContent() {
                   sales={sales}
                   products={products}
                   storeName={storeName}
+                  alertCount={unreadAlertCount}
+                  onOpenAlerts={() => setIsAlertsOpen(true)}
                 />
               )}
 
@@ -2192,6 +2219,9 @@ function AppContent() {
                   pagos={contractPayments.length > 0 ? contractPayments : (activeStore?.pagos || [])}
                   onToggleEmployee={handleToggleEmployee}
                   onAddEmployee={handleAddEmployee}
+                  onOpenPalette={() => setIsPaletteOpen(true)}
+                  alertCount={unreadAlertCount}
+                  onOpenAlerts={() => setIsAlertsOpen(true)}
                 />
               )}
             </>
@@ -2246,6 +2276,25 @@ function AppContent() {
       </div>
 
       {/* Modales Compartidos */}
+      <GlobalSearchModal
+        isOpen={isGlobalSearchOpen}
+        onClose={() => setIsGlobalSearchOpen(false)}
+        products={products}
+        sales={sales}
+        onSelectProduct={() => {
+          setIsGlobalSearchOpen(false);
+          setStoreTab('inv');
+        }}
+        onSelectSale={(s) => {
+          setIsGlobalSearchOpen(false);
+          setActiveSaleModal({ sale: s, isReceipt: false });
+        }}
+        onSelectTab={(tab) => {
+          setIsGlobalSearchOpen(false);
+          setStoreTab(tab);
+        }}
+      />
+
       <PaletteModal
         isOpen={isPaletteOpen}
         onClose={() => setIsPaletteOpen(false)}

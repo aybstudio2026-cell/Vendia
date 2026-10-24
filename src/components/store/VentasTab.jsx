@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { money } from '../../constants/palettes';
 import { exportSalesToCSV } from '../../utils/exportCSV';
 import { IconDownload } from '../common/Icons';
+import AlertBellButton from '../common/AlertBellButton';
 import { formatTicketCode } from '../../utils/ticketGenerator';
 import { getPeruDateIso, formatPeruDate, parseToPeruDateIso } from '../../utils/dateUtils';
 
@@ -13,7 +14,9 @@ export default function VentasTab({
   onSelectSale,
   onVoidSale = null,
   storeName = "Minimarket La Esquina",
-  paymentMethods = ['Efectivo', 'Yape / Plin', 'Tarjeta', 'Transferencia']
+  paymentMethods = ['Efectivo', 'Yape / Plin', 'Tarjeta', 'Transferencia'],
+  alertCount = 0,
+  onOpenAlerts
 }) {
   const [metodoFilter, setMetodoFilter] = useState('Todas');
   const [estadoFilter, setEstadoFilter] = useState('completadas'); // 'todas' | 'completadas' | 'anuladas'
@@ -68,16 +71,21 @@ export default function VentasTab({
           </p>
         </div>
 
-        <button
-          type="button"
-          className="btn o"
-          onClick={() => exportSalesToCSV(sales, products, storeName)}
-          title="Descargar historial de ventas en Excel / CSV"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px' }}
-        >
-          <IconDownload size={16} />
-          <span>Exportar Ventas CSV</span>
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn o"
+            onClick={() => exportSalesToCSV(sales, products, storeName)}
+            title="Descargar historial de ventas en Excel / CSV"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px' }}
+          >
+            <IconDownload size={16} />
+            <span>Exportar Ventas CSV</span>
+          </button>
+          {onOpenAlerts && (
+            <AlertBellButton alertCount={alertCount} onOpenAlerts={onOpenAlerts} />
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}

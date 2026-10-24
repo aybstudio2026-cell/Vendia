@@ -2,12 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { money, getUnidadMedida } from '../../constants/palettes';
 import { exportExecutiveReportToCSV } from '../../utils/exportCSV';
 import { IconDownload, IconTrending, IconUsers, IconBarcode } from '../common/Icons';
+import AlertBellButton from '../common/AlertBellButton';
 import { getPeruDateIso, parseToPeruDateIso, diffDaysPeru, getPeruDateParts } from '../../utils/dateUtils';
 
 export default function ReportesTab({
   sales = [],
   products = [],
-  storeName = "Mi Tienda"
+  storeName = "Mi Tienda",
+  alertCount = 0,
+  onOpenAlerts
 }) {
   const [periodo, setPeriodo] = useState('mes'); // 'hoy', '7d', 'mes', 'todo'
   const [reportSubTab, setReportSubTab] = useState('general'); // 'general' | 'rentabilidad' | 'empleados' | 'turnos' | 'sin_rotacion'
@@ -261,15 +264,20 @@ export default function ReportesTab({
           <p className="lead">Rentabilidad, desempeño por cajero, turnos pico y capital en inventario.</p>
         </div>
 
-        <button
-          type="button"
-          className="btn o"
-          onClick={handleExportCSV}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minHeight: '44px' }}
-        >
-          <IconDownload size={16} />
-          <span>Exportar Informe CSV</span>
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn o"
+            onClick={handleExportCSV}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minHeight: '44px' }}
+          >
+            <IconDownload size={16} />
+            <span>Exportar Informe CSV</span>
+          </button>
+          {onOpenAlerts && (
+            <AlertBellButton alertCount={alertCount} onOpenAlerts={onOpenAlerts} />
+          )}
+        </div>
       </div>
 
       {/* Selector de Rango de Periodos */}

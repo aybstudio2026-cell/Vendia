@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { money, fd } from '../../constants/palettes';
+import { money, fd, PALETTES } from '../../constants/palettes';
 import Modal from '../common/Modal';
-import { IconUpload, IconImage } from '../common/Icons';
+import { IconUpload, IconImage, IconPalette, IconSun, IconMoon, IconBell } from '../common/Icons';
+import { useTheme } from '../../context/ThemeContext';
+import AlertBellButton from '../common/AlertBellButton';
 import { uploadStoreLogoToSupabase } from '../../services/storeService';
 import { exportStoreCompleteData, exportProductsToCSV } from '../../services/exportService';
 import { resolveStorePlan } from '../../services/saasService';
@@ -32,8 +34,12 @@ export default function NegocioTab({
     { fecha: '2026-07-15', monto: 20 }
   ],
   paymentMethods = ['Efectivo', 'Yape / Plin', 'Tarjeta', 'Transferencia'],
-  onUpdatePaymentMethods
+  onUpdatePaymentMethods,
+  onOpenPalette,
+  alertCount = 0,
+  onOpenAlerts
 }) {
+  const { theme, toggleTheme, palette, setPalette } = useTheme();
   const [isExporting, setIsExporting] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [empNombre, setEmpNombre] = useState('');
@@ -187,10 +193,157 @@ export default function NegocioTab({
 
   return (
     <div>
-      <div className="bar">
+      <div className="bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1>Negocio</h1>
           <p className="lead">Tu identidad de tienda, tu plan, tus empleados y lo que puede hacer cada rol.</p>
+        </div>
+        {onOpenAlerts && (
+          <AlertBellButton alertCount={alertCount} onOpenAlerts={onOpenAlerts} />
+        )}
+      </div>
+
+      {/* Configuración de Apariencia: Paleta de Colores y Modo Oscuro / Claro */}
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '17px', fontWeight: '700' }}>Apariencia y Colores de la Tienda</h2>
+            <p className="hint" style={{ margin: '4px 0 0 0', fontSize: '13px' }}>
+              Personaliza el tema visual (Modo Claro / Modo Oscuro) y la paleta de colores de tu sistema.
+            </p>
+          </div>
+        </div>
+
+        <div className="pad" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          {/* Bloque 1: Modo Claro / Oscuro */}
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '12px',
+              background: 'var(--fog)',
+              border: '1px solid var(--mist)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: '14px'
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--ink)', marginBottom: '4px' }}>
+                Tema de Visualización
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--pewter)', margin: 0, lineHeight: 1.4 }}>
+                Alterna entre modo luminoso y modo oscuro para descansar la vista según la iluminación de tu local.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className={`btn ${theme === 'light' ? 'p' : 'o'}`}
+                onClick={() => { if (theme !== 'light') toggleTheme(); }}
+                style={{
+                  flex: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  minHeight: '40px',
+                  fontWeight: '600'
+                }}
+              >
+                <IconSun size={16} />
+                <span>Modo Claro</span>
+              </button>
+
+              <button
+                type="button"
+                className={`btn ${theme === 'dark' ? 'p' : 'o'}`}
+                onClick={() => { if (theme !== 'dark') toggleTheme(); }}
+                style={{
+                  flex: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  minHeight: '40px',
+                  fontWeight: '600'
+                }}
+              >
+                <IconMoon size={16} />
+                <span>Modo Oscuro</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Bloque 2: Paleta de Colores de la Marca */}
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '12px',
+              background: 'var(--fog)',
+              border: '1px solid var(--mist)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: '14px'
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--ink)' }}>
+                  Paleta de Colores
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: 'var(--paper)',
+                    border: '1px solid var(--mist)',
+                    color: 'var(--graphite)',
+                    textTransform: 'capitalize',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: 'var(--ember)',
+                      display: 'inline-block'
+                    }}
+                  />
+                  {palette || 'Brex'}
+                </span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--pewter)', margin: 0, lineHeight: 1.4 }}>
+                Personaliza los colores de botones, tarjetas, encabezados e insignias de todo el sistema.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="btn p"
+              onClick={onOpenPalette}
+              style={{
+                width: '100%',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                minHeight: '40px',
+                fontWeight: '600'
+              }}
+            >
+              <IconPalette size={16} />
+              <span>Personalizar Paleta de Colores</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -343,6 +496,196 @@ export default function NegocioTab({
                   {logoStatus}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Apariencia y Personalización de la Tienda */}
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--mist)', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: 'var(--ink)' }}>
+              Apariencia y Colores de la Tienda
+            </h2>
+            <p className="hint" style={{ margin: '4px 0 0', fontSize: '12.5px' }}>
+              Personaliza el color de acento y la iluminación de la interfaz para tu negocio.
+            </p>
+          </div>
+        </div>
+
+        <div className="pad" style={{ padding: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+            {/* Opción 1: Paleta de Colores */}
+            <div
+              style={{
+                border: '1px solid var(--mist)',
+                borderRadius: '14px',
+                padding: '20px',
+                background: 'var(--fog)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '16px'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <div
+                    style={{
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '8px',
+                      background: 'color-mix(in srgb, var(--ember) 15%, transparent)',
+                      color: 'var(--ember)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <IconPalette size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '600', color: 'var(--ink)' }}>
+                      Paleta de Colores
+                    </h3>
+                    <span style={{ fontSize: '11px', color: 'var(--steel)' }}>Color de marca e interactivos</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '12.5px', color: 'var(--graphite)', margin: '0 0 14px', lineHeight: 1.4 }}>
+                  Cambia la tonalidad de botones, tarjetas activas e indicadores para que coincida con tu identidad.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      background: 'var(--ember)',
+                      boxShadow: '0 0 8px color-mix(in srgb, var(--ember) 60%, transparent)',
+                      display: 'inline-block'
+                    }}
+                  />
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--ink)' }}>
+                    Color activo en la tienda
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn p"
+                onClick={onOpenPalette}
+                style={{ width: '100%', minHeight: '40px', fontSize: '12.5px', fontWeight: '600' }}
+              >
+                <IconPalette size={16} />
+                <span>Configurar paleta de colores</span>
+              </button>
+            </div>
+
+            {/* Opción 2: Modo Oscuro / Modo Claro */}
+            <div
+              style={{
+                border: '1px solid var(--mist)',
+                borderRadius: '14px',
+                padding: '20px',
+                background: 'var(--fog)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '16px'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <div
+                    style={{
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '8px',
+                      background: 'color-mix(in srgb, var(--ember) 15%, transparent)',
+                      color: 'var(--ember)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {theme === 'dark' ? <IconMoon size={18} /> : <IconSun size={18} />}
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '600', color: 'var(--ink)' }}>
+                      Tema de Iluminación
+                    </h3>
+                    <span style={{ fontSize: '11px', color: 'var(--steel)' }}>Modo Claro u Oscuro</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '12.5px', color: 'var(--graphite)', margin: '0 0 14px', lineHeight: 1.4 }}>
+                  Elige entre fondo claro para el día o modo oscuro para descanso visual y ahorro de energía.
+                </p>
+
+                {/* Switch Segmentado Claro / Oscuro */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '6px',
+                    padding: '4px',
+                    background: 'var(--paper)',
+                    borderRadius: '10px',
+                    border: '1px solid var(--mist)'
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => { if (theme !== 'light') toggleTheme(); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: theme === 'light' ? 'var(--ember)' : 'transparent',
+                      color: theme === 'light' ? 'var(--onacc)' : 'var(--graphite)',
+                      fontWeight: '600',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <IconSun size={15} />
+                    <span>Claro</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { if (theme !== 'dark') toggleTheme(); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: theme === 'dark' ? 'var(--ember)' : 'transparent',
+                      color: theme === 'dark' ? 'var(--onacc)' : 'var(--graphite)',
+                      fontWeight: '600',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <IconMoon size={15} />
+                    <span>Oscuro</span>
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '11.5px', color: 'var(--pewter)', textAlign: 'center' }}>
+                Tema activo: <b>{theme === 'dark' ? 'Modo Oscuro' : 'Modo Claro'}</b>
+              </div>
             </div>
           </div>
         </div>
