@@ -8,7 +8,9 @@ export default function Modal({
   maxWidth = 480,
   className = '',
   style = {},
-  contentStyle = {}
+  contentStyle = {},
+  centerTitle = false,
+  titleStyle = {}
 }) {
   const dialogRef = useRef(null);
 
@@ -61,7 +63,11 @@ export default function Modal({
           ...contentStyle
         }}
       >
-        {title && <h2>{title}</h2>}
+        {title && (
+          <h2 style={{ ...(centerTitle ? { textAlign: 'center' } : {}), ...titleStyle }}>
+            {title}
+          </h2>
+        )}
         {children}
       </div>
     </dialog>

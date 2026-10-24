@@ -176,6 +176,7 @@ export default function TicketModal({
       onClose={onClose}
       title={isReceipt ? "¡Venta completada con éxito!" : `Comprobante de Venta ${ticketCode}`}
       maxWidth={460}
+      centerTitle={true}
     >
       {/* Alerta de Venta Anulada */}
       {isAnulada && (
