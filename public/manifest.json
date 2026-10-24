@@ -1,0 +1,19 @@
+{
+  "name": "Vendia — Punto de Venta & Gestión Cloud",
+  "short_name": "Vendia",
+  "description": "Plataforma SaaS de punto de venta, inventario y facturación multitienda",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#060B17",
+  "theme_color": "#060B17",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
