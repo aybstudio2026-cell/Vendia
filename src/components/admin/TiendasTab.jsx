@@ -10,7 +10,7 @@ import { IconWhatsApp, IconTrending, IconEye } from '../common/Icons';
 import { resolveStorePlan } from '../../services/saasService';
 import Pagination from '../common/Pagination';
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 25;
 
 const PLAN_META = {
   basico: { color: '#3b82f6', label: 'Plan Emprendedor', short: 'Emprendedor' },
@@ -204,14 +204,26 @@ export default function TiendasTab({
 
       {/* Tabla de Tiendas */}
       <div className="card">
-        <div className="head t-tiendas">
-          <div style={{ textAlign: 'center' }}>Plan</div>
-          <div>Tienda</div>
-          <div>Estado</div>
-          <div>Contrato desde</div>
-          <div>Pago</div>
-          <div>Próximo pago</div>
-        </div>
+        <div style={{ maxHeight: '680px', overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
+          <div
+            className="head t-tiendas"
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 10,
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              background: 'rgba(248, 250, 252, 0.92)',
+              borderBottom: '1px solid var(--mist, #e2e8f0)'
+            }}
+          >
+            <div style={{ textAlign: 'center' }}>Plan</div>
+            <div>Tienda</div>
+            <div>Estado</div>
+            <div>Contrato desde</div>
+            <div>Pago</div>
+            <div>Próximo pago</div>
+          </div>
 
         {paginatedStores.length > 0 ? (
           paginatedStores.map((s) => {
@@ -325,6 +337,7 @@ export default function TiendasTab({
         ) : (
           <div className="empty" style={{ fontSize: '12px' }}>No hay tiendas con esos filtros.</div>
         )}
+        </div>
 
         <Pagination
           currentPage={validPage}

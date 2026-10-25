@@ -4,7 +4,7 @@ import { IconWhatsApp, IconDownload, IconCheck } from '../common/Icons';
 import Modal from '../common/Modal';
 import Pagination from '../common/Pagination';
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 25;
 
 export default function PagosTab({ stores = [], payments = [], onRegisterPayment }) {
   const today = new Date();
@@ -341,8 +341,8 @@ export default function PagosTab({ stores = [], payments = [], onRegisterPayment
           </div>
 
           {filteredPayments.length > 0 ? (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: '760px' }}>
+            <div style={{ maxHeight: '620px', overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
+              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', minWidth: '760px' }}>
                 <colgroup>
                   <col style={{ width: '16%' }} />
                   <col style={{ width: '24%' }} />
@@ -351,14 +351,14 @@ export default function PagosTab({ stores = [], payments = [], onRegisterPayment
                   <col style={{ width: '15%' }} />
                   <col style={{ width: '15%' }} />
                 </colgroup>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f8fafc', textAlign: 'left' }}>
-                    <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fecha</th>
-                    <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tienda</th>
-                    <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Método</th>
-                    <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Monto</th>
-                    <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Comprobante</th>
-                    <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nota</th>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                  <tr style={{ background: 'rgba(248, 250, 252, 0.92)' }}>
+                    <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fecha</th>
+                    <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tienda</th>
+                    <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Método</th>
+                    <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Monto</th>
+                    <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Comprobante</th>
+                    <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nota</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -430,8 +430,8 @@ export default function PagosTab({ stores = [], payments = [], onRegisterPayment
             </p>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: '820px' }}>
+          <div style={{ maxHeight: '620px', overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', minWidth: '820px' }}>
               <colgroup>
                 <col style={{ width: '22%' }} />
                 <col style={{ width: '20%' }} />
@@ -440,14 +440,14 @@ export default function PagosTab({ stores = [], payments = [], onRegisterPayment
                 <col style={{ width: '14%' }} />
                 <col style={{ width: '16%' }} />
               </colgroup>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f8fafc', textAlign: 'left' }}>
-                  <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tienda</th>
-                  <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Dueño / Teléfono</th>
-                  <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tarifa</th>
-                  <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Próximo Pago</th>
-                  <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Estado</th>
-                  <th style={{ padding: '9px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Acciones</th>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                <tr style={{ background: 'rgba(248, 250, 252, 0.92)' }}>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tienda</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Dueño / Teléfono</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tarifa</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Próximo Pago</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Estado</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(248, 250, 252, 0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', padding: '10px 18px', color: '#475569', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>

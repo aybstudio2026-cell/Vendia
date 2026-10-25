@@ -908,6 +908,18 @@ button.row:hover {
     text-transform: uppercase;
     letter-spacing: 0.4px;
     color: var(--graphite);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: rgba(248, 250, 252, 0.92);
+    border-bottom: 1px solid var(--mist);
+  }
+
+  :root[data-theme="dark"] .head.t-tiendas {
+    background: rgba(21, 25, 30, 0.92);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
   }
 
   .row.t-tiendas {
