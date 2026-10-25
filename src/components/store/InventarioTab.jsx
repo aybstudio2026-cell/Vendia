@@ -370,7 +370,7 @@ export default function InventarioTab({
         <div className="head">
           <div>Producto</div>
           <div>Categoría / Unidad</div>
-          <div>Precio / Costo</div>
+          <div>{isDueno ? 'Precio / Costo' : 'Precio'}</div>
           <div>Stock</div>
           <div>Estado</div>
         </div>
@@ -420,10 +420,10 @@ export default function InventarioTab({
                     </span>
                   </div>
                 </div>
-                <div data-l="Precio / Costo">
-                  <div style={{ fontWeight: 600 }}>{money(p.precio_venta)}</div>
-                  {p.costo_unitario > 0 && (
-                    <small style={{ color: 'var(--pewter)', fontSize: '11px', display: 'block' }}>
+                <div data-l={isDueno ? "Precio / Costo" : "Precio"}>
+                  <div className="price-display" style={{ fontWeight: 600 }}>{money(p.precio_venta)}</div>
+                  {isDueno && p.costo_unitario > 0 && (
+                    <small className="price-display" style={{ color: 'var(--pewter)', fontSize: '11px', display: 'block' }}>
                       Costo: {money(p.costo_unitario)}
                     </small>
                   )}
@@ -643,7 +643,7 @@ export default function InventarioTab({
           </div>
 
           {/* Precios y Margen */}
-          <div className="g2">
+          <div className={isDueno ? "g2" : ""}>
             <label>
               <span>Precio de venta (S/.)</span>
               <input
@@ -656,21 +656,23 @@ export default function InventarioTab({
                 style={{ minHeight: '44px' }}
               />
             </label>
-            <label>
-              <span>Costo de compra (S/. opcional)</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formCosto}
-                onChange={(e) => setFormCosto(e.target.value)}
-                placeholder="Para medir rentabilidad"
-                style={{ minHeight: '44px' }}
-              />
-            </label>
+            {isDueno && (
+              <label>
+                <span>Costo de compra (S/. opcional)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formCosto}
+                  onChange={(e) => setFormCosto(e.target.value)}
+                  placeholder="Para medir rentabilidad"
+                  style={{ minHeight: '44px' }}
+                />
+              </label>
+            )}
           </div>
 
-          {precioNum > 0 && costoNum > 0 && (
+          {isDueno && precioNum > 0 && costoNum > 0 && (
             <div
               style={{
                 padding: '8px 12px',
@@ -682,8 +684,8 @@ export default function InventarioTab({
                 marginBottom: '10px'
               }}
             >
-              <span>Ganancia estimada: <b>{money(gananciaBruta)}</b></span>
-              <span>Margen bruto: <b style={{ color: margenPorcentaje >= 25 ? '#15803d' : '#d97706' }}>{margenPorcentaje}%</b></span>
+              <span>Ganancia estimada: <b className="price-display">{money(gananciaBruta)}</b></span>
+              <span>Margen bruto: <b className="price-display" style={{ color: margenPorcentaje >= 25 ? '#15803d' : '#d97706' }}>{margenPorcentaje}%</b></span>
             </div>
           )}
 

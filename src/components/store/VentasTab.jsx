@@ -16,7 +16,10 @@ export default function VentasTab({
   storeName = "Minimarket La Esquina",
   paymentMethods = ['Efectivo', 'Yape / Plin', 'Tarjeta', 'Transferencia'],
   alertCount = 0,
-  onOpenAlerts
+  onOpenAlerts,
+  role = 'dueno',
+  onOpenPinModal = null,
+  pinUsosRestantes = 0
 }) {
   const [metodoFilter, setMetodoFilter] = useState('Todas');
   const [estadoFilter, setEstadoFilter] = useState('completadas'); // 'todas' | 'completadas' | 'anuladas'
@@ -71,7 +74,31 @@ export default function VentasTab({
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {role === 'dueno' && onOpenPinModal && (
+            <button
+              type="button"
+              className="btn o"
+              onClick={onOpenPinModal}
+              title="Ver o generar PIN de 6 dígitos para anular ventas (máx 3 usos)"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', borderColor: 'var(--primary, #059669)' }}
+            >
+              <span>🛡️ PIN Anulaciones</span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  backgroundColor: pinUsosRestantes > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: pinUsosRestantes > 0 ? '#059669' : '#dc2626'
+                }}
+              >
+                {pinUsosRestantes > 0 ? `${pinUsosRestantes}/3 usos` : 'Agotado'}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             className="btn o"

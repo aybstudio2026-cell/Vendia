@@ -19,13 +19,17 @@ export default function TicketModal({
   storeLogo = null,
   isReceipt = false,
   onVoidSale = null,
-  canVoid = true
+  canVoid = true,
+  role = 'dueno'
 }) {
   const [customerPhone, setCustomerPhone] = useState('');
   const [sharingStatus, setSharingStatus] = useState(null); // 'generating' | 'copied' | 'shared' | 'error'
   const [isVoidPromptOpen, setIsVoidPromptOpen] = useState(false);
   const [voidReason, setVoidReason] = useState('Error en digitación');
   const [voidCustomReason, setVoidCustomReason] = useState('');
+  const [voidPin, setVoidPin] = useState('');
+  const [voidPinError, setVoidPinError] = useState(null);
+  const [isVoiding, setIsVoiding] = useState(false);
 
   if (!isOpen || !sale) return null;
 
@@ -163,11 +167,29 @@ export default function TicketModal({
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const handleConfirmVoid = () => {
+  const handleConfirmVoid = async () => {
     if (!onVoidSale) return;
-    const finalReason = voidReason === 'Otro' ? (voidCustomReason || 'Otro motivo') : voidReason;
-    onVoidSale(sale, finalReason);
-    setIsVoidPromptOpen(false);
+    const isOwner = role === 'dueno';
+
+    if (!isOwner) {
+      if (!voidPin || voidPin.trim().length !== 6) {
+        setVoidPinError('Ingresa el PIN de 6 dígitos del dueño para autorizar.');
+        return;
+      }
+    }
+
+    try {
+      setIsVoiding(true);
+      setVoidPinError(null);
+      const finalReason = voidReason === 'Otro' ? (voidCustomReason || 'Otro motivo') : voidReason;
+      await onVoidSale(sale, finalReason, voidPin ? voidPin.trim() : null);
+      setIsVoidPromptOpen(false);
+      setVoidPin('');
+    } catch (err) {
+      setVoidPinError(err.message || 'Error al validar PIN de autorización');
+    } finally {
+      setIsVoiding(false);
+    }
   };
 
   return (
@@ -444,20 +466,79 @@ export default function TicketModal({
             />
           )}
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+          {/* Validación de Rol y PIN Dinámico */}
+          {role === 'dueno' ? (
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              fontSize: '12px',
+              color: '#065f46',
+              marginTop: '6px'
+            }}>
+              ✓ Como Dueño de la tienda, estás autorizado para anular directamente.
+            </div>
+          ) : (
+            <div style={{ marginTop: '10px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#dc2626', marginBottom: '4px' }}>
+                🔒 PIN de Autorización del Dueño (6 dígitos):
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                placeholder="••••••"
+                value={voidPin}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                  setVoidPin(val);
+                  if (voidPinError) setVoidPinError(null);
+                }}
+                className="pin-input-secure price-display tabular-nums"
+                style={{
+                  width: '100%',
+                  minHeight: '44px',
+                  fontSize: '24px',
+                  letterSpacing: '0.3em',
+                  textAlign: 'center',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  ...(voidPinError ? { border: '2px solid #ef4444' } : {})
+                }}
+              />
+              <p style={{ fontSize: '11px', color: 'var(--graphite, #94a3b8)', margin: '4px 0 0 0' }}>
+                ⚠️ Solicita el código activo al dueño de la tienda (válido hasta 3 usos).
+              </p>
+              {voidPinError && (
+                <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '6px', fontWeight: 600 }}>
+                  ❌ {voidPinError}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
             <button
               type="button"
               className="btn s"
               style={{ background: '#dc2626', color: '#ffffff', border: 'none', flex: 1, minHeight: '38px' }}
               onClick={handleConfirmVoid}
+              disabled={isVoiding}
             >
-              Confirmar Anulación
+              {isVoiding ? 'Verificando...' : 'Confirmar Anulación'}
             </button>
             <button
               type="button"
               className="btn o s"
               style={{ minHeight: '38px' }}
-              onClick={() => setIsVoidPromptOpen(false)}
+              onClick={() => {
+                setIsVoidPromptOpen(false);
+                setVoidPinError(null);
+                setVoidPin('');
+              }}
+              disabled={isVoiding}
             >
               Cancelar
             </button>

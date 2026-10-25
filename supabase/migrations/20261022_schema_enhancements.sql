@@ -108,9 +108,14 @@ CREATE OR REPLACE FUNCTION registrar_venta(
   p_pagos_mixtos JSONB DEFAULT NULL,
   p_idempotency_key TEXT DEFAULT NULL
 )
-RETURNS JSONB AS $$
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_tienda_id UUID;
+  v_sede_id UUID;
   v_usuario_id UUID := auth.uid();
   v_item RECORD;
   v_venta_id UUID;
@@ -132,20 +137,33 @@ BEGIN
         'correlativo', v_correlativo,
         'serie', v_serie,
         'total', v_total,
-        'vuelto', CASE WHEN p_monto_recibido > v_total THEN p_monto_recibido - v_total ELSE 0 END,
+        'vuelto', CASE WHEN p_monto_recibido > v_total THEN ROUND(p_monto_recibido - v_total, 2) ELSE 0 END,
         'idempotent', true
       );
     END IF;
   END IF;
 
-  -- 2. Resolver tienda_id con fallback seguro si p_sede_id fuera la tienda directa
+  -- 2. Resolver sede_id y tienda_id con fallback bidireccional
   SELECT tienda_id INTO v_tienda_id FROM sedes WHERE id = p_sede_id;
-  IF v_tienda_id IS NULL THEN
+  IF v_tienda_id IS NOT NULL THEN
+    v_sede_id := p_sede_id;
+  ELSE
+    -- p_sede_id era el id de la tienda directamente
     SELECT id INTO v_tienda_id FROM tiendas WHERE id = p_sede_id;
+    IF v_tienda_id IS NOT NULL THEN
+      -- Buscar la sede principal vinculada a esta tienda
+      SELECT id INTO v_sede_id FROM sedes WHERE tienda_id = v_tienda_id ORDER BY es_principal DESC NULLS LAST LIMIT 1;
+      -- Si no existiera sede registrada aún, crear la sede principal automáticamente
+      IF v_sede_id IS NULL THEN
+        INSERT INTO sedes (tienda_id, nombre, direccion, es_principal)
+        VALUES (v_tienda_id, 'Sede Principal', 'Principal', true)
+        RETURNING id INTO v_sede_id;
+      END IF;
+    END IF;
   END IF;
 
-  IF v_tienda_id IS NULL THEN
-    RAISE EXCEPTION 'No se pudo identificar la tienda para esta sede.';
+  IF v_tienda_id IS NULL OR v_sede_id IS NULL THEN
+    RAISE EXCEPTION 'No se pudo identificar la tienda o sede válida para el identificador %', p_sede_id;
   END IF;
 
   -- 3. Resolver usuario_id si auth.uid() no está disponible
@@ -158,21 +176,34 @@ BEGIN
   FROM ventas
   WHERE tienda_id = v_tienda_id;
 
-  -- 5. Calcular total de la venta
-  FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(producto_id UUID, cantidad NUMERIC, precio NUMERIC)
+  -- 5. Calcular total de la venta consultando la base de datos como ÚNICA AUTORIDAD (ignorar precio del cliente)
+  FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(producto_id UUID, cantidad NUMERIC)
   LOOP
-    v_precio := COALESCE(v_item.precio, 0);
-    IF v_precio = 0 THEN
-      SELECT COALESCE(precio_venta, precio, 0) INTO v_precio FROM productos WHERE id = v_item.producto_id;
+    IF v_item.cantidad IS NULL OR v_item.cantidad <= 0 THEN
+      RAISE EXCEPTION 'La cantidad debe ser mayor a 0 para el producto %', v_item.producto_id;
     END IF;
-    v_total := v_total + (COALESCE(v_precio, 0) * v_item.cantidad);
+
+    -- Consultar precio oficial directamente en la tabla productos de la tienda
+    SELECT COALESCE(precio_venta, precio, 0) INTO v_precio
+    FROM productos
+    WHERE id = v_item.producto_id AND tienda_id = v_tienda_id;
+
+    IF v_precio IS NULL OR v_precio <= 0 THEN
+      RAISE EXCEPTION 'El producto % no existe o no tiene un precio válido asignado en la tienda.', v_item.producto_id;
+    END IF;
+
+    v_total := v_total + ROUND(v_precio * v_item.cantidad, 2);
   END LOOP;
 
+  v_total := ROUND(v_total, 2);
+
   IF p_monto_recibido IS NOT NULL AND p_monto_recibido > v_total THEN
-    v_vuelto := p_monto_recibido - v_total;
+    v_vuelto := ROUND(p_monto_recibido - v_total, 2);
+  ELSE
+    v_vuelto := 0;
   END IF;
 
-  -- 6. Insertar cabecera de la venta
+  -- 6. Insertar cabecera de la venta con el total real verificado
   INSERT INTO ventas (
     tienda_id,
     sede_id,
@@ -188,7 +219,7 @@ BEGIN
     creado_en
   ) VALUES (
     v_tienda_id,
-    p_sede_id,
+    v_sede_id,
     v_usuario_id,
     v_total,
     p_metodo_pago,
@@ -201,14 +232,14 @@ BEGIN
     NOW()
   ) RETURNING id INTO v_venta_id;
 
-  -- 7. Insertar detalle de ítems y actualizar inventario
-  FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(producto_id UUID, cantidad NUMERIC, precio NUMERIC)
+  -- 7. Insertar detalle de ítems y actualizar inventario usando precio oficial de la base de datos
+  FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(producto_id UUID, cantidad NUMERIC)
   LOOP
-    v_precio := COALESCE(v_item.precio, 0);
-    IF v_precio = 0 THEN
-      SELECT COALESCE(precio_venta, precio, 0) INTO v_precio FROM productos WHERE id = v_item.producto_id;
-    END IF;
-    v_subtotal := COALESCE(v_precio, 0) * v_item.cantidad;
+    SELECT COALESCE(precio_venta, precio, 0) INTO v_precio
+    FROM productos
+    WHERE id = v_item.producto_id AND tienda_id = v_tienda_id;
+
+    v_subtotal := ROUND(v_precio * v_item.cantidad, 2);
 
     -- Insertar en venta_items pasando tienda_id y sede_id requeridos por RLS
     INSERT INTO venta_items (
@@ -222,12 +253,12 @@ BEGIN
       subtotal
     ) VALUES (
       v_tienda_id,
-      p_sede_id,
+      v_sede_id,
       v_venta_id,
       v_item.producto_id,
       v_item.cantidad,
-      COALESCE(v_precio, 0),
-      COALESCE(v_precio, 0),
+      v_precio,
+      v_precio,
       v_subtotal
     );
 
@@ -237,7 +268,7 @@ BEGIN
         cantidad = GREATEST(COALESCE(cantidad, stock_actual, 0) - v_item.cantidad, 0),
         actualizado_en = NOW()
     WHERE producto_id = v_item.producto_id
-      AND (sede_id = p_sede_id OR tienda_id = v_tienda_id);
+      AND (sede_id = v_sede_id OR tienda_id = v_tienda_id);
 
     -- Registrar kardex (compatible con columna 'tipo' y 'tipo_movimiento')
     INSERT INTO movimientos_inventario (
@@ -252,7 +283,7 @@ BEGIN
       creado_en
     ) VALUES (
       v_tienda_id,
-      p_sede_id,
+      v_sede_id,
       v_item.producto_id,
       'venta',
       'venta',

@@ -206,7 +206,36 @@
   --pewter: #64748b;
   --steel: #475569;
   --mist: #242b38;
+  --bg-surface: #151922;
+  --bg-surface-soft: rgba(255, 255, 255, 0.05);
+  --text-main: #ffffff;
+  --text-muted: #94a3b8;
   color-scheme: dark;
+}
+
+/* Input de PIN de seguridad con contraste nítido en modo claro y oscuro */
+.pin-input-secure {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--mist);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.pin-input-secure:focus {
+  border-color: var(--ember);
+  box-shadow: 0 0 0 3px rgba(255, 89, 0, 0.2);
+  outline: none;
+}
+
+:root[data-theme="dark"] .pin-input-secure {
+  background: #1b212c !important;
+  color: #ffffff !important;
+  border-color: #3b4252;
+}
+
+:root[data-theme="dark"] .pin-input-secure:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
 }
 
 *,
@@ -760,6 +789,20 @@ input::placeholder {
   font-size: 30px;
   font-weight: 800;
   line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+/* Números tabulares para importes, cantidades y precios (evita saltos y oscilaciones horizontales) */
+.stat b,
+.price-display,
+td.monto,
+th.monto,
+.pr,
+.monto,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
   letter-spacing: -0.02em;
 }
 

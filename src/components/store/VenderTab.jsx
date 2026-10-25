@@ -21,7 +21,8 @@ export default function VenderTab({
   storeLogo = null,
   paymentMethods = ['Efectivo', 'Yape / Plin', 'Tarjeta', 'Transferencia'],
   alertCount = 0,
-  onOpenAlerts
+  onOpenAlerts,
+  isCartRestored = false
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
@@ -290,9 +291,29 @@ export default function VenderTab({
   const renderCartCard = () => (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--mist)' }}>
-        <h2 style={{ margin: 0, padding: 0, border: 0, fontSize: '16px' }}>Venta actual</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2 style={{ margin: 0, padding: 0, border: 0, fontSize: '16px' }}>Venta actual</h2>
+          {isCartRestored && cartEntries.length > 0 && (
+            <span
+              className="chip ok"
+              style={{
+                fontSize: '11px',
+                fontWeight: '700',
+                padding: '2px 8px',
+                background: 'rgba(16, 185, 129, 0.12)',
+                color: '#059669',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+              title="El carrito se restauró automáticamente desde tu última sesión"
+            >
+              ✓ Carrito restaurado
+            </span>
+          )}
+        </div>
         {cartEntries.length > 0 && (
-          <span className="chip" style={{ fontSize: '12px', fontWeight: '700' }}>
+          <span className="chip tabular-nums" style={{ fontSize: '12px', fontWeight: '700' }}>
             {cartEntries.length} {cartEntries.length === 1 ? 'producto' : 'productos'}
           </span>
         )}
@@ -328,11 +349,11 @@ export default function VenderTab({
                     >
                       {prod.categoria || 'General'}
                     </span>
-                    <small style={{ color: 'var(--pewter)', fontSize: '11px' }}>
+                    <small className="price-display" style={{ color: 'var(--pewter)', fontSize: '11px' }}>
                       {money(prod.precio_venta)} / {unit.short}
                     </small>
                   </div>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--ink)', marginTop: '2px' }}>
+                  <div className="price-display" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--ink)', marginTop: '2px' }}>
                     Subtotal: {money(subtotal)}
                   </div>
                 </div>
@@ -349,6 +370,7 @@ export default function VenderTab({
 
                   <button
                     type="button"
+                    className="tabular-nums"
                     onClick={() => {
                       if (unit.decimal) {
                         setWeightModalProduct(prod);
@@ -613,7 +635,7 @@ export default function VenderTab({
           }}
         >
           <span style={{ fontSize: '15px', fontWeight: '600' }}>TOTAL</span>
-          <span style={{ fontSize: '26px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--ember)' }}>
+          <span className="price-display" style={{ fontSize: '26px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--ember)' }}>
             {money(totalCart)}
           </span>
         </div>
@@ -802,7 +824,7 @@ export default function VenderTab({
                 <b style={{ fontSize: '13px', lineHeight: '1.3' }}>{p.nombre}</b>
 
                 <div>
-                  <div className="pr">
+                  <div className="pr price-display">
                     {money(p.precio_venta)} <small style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--pewter)' }}>/{unit.short}</small>
                   </div>
                   <div style={{ marginTop: '4px' }}>

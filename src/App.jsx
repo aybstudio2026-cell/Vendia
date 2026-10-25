@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Header from './components/common/Header';
@@ -23,6 +23,7 @@ import NegocioTab from './components/store/NegocioTab';
 import ReportesTab from './components/store/ReportesTab';
 import AlertasModal from './components/store/AlertasModal';
 import TicketModal from './components/store/TicketModal';
+import PinAnulacionModal from './components/store/PinAnulacionModal';
 
 // Superadmin
 import MetricasTab from './components/admin/MetricasTab';
@@ -49,6 +50,8 @@ import {
   getStoreInventoryMovements,
   registrarVentaRPC,
   anularVentaRPC,
+  solicitarPinAnulacionRPC,
+  obtenerPinAnulacionRPC,
   crearProductoRPC,
   editarProductoRPC,
   guardarPaletaRPC,
@@ -248,6 +251,17 @@ function AppContent() {
     return localStorage.getItem('vendia_sidebar_collapsed') === 'true';
   });
 
+  // PIN dinámico de 6 dígitos para autorización de anulaciones (máx 3 usos)
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [storePinData, setStorePinData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vendia_demo_pin_data');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return { pin: '748291', usos_restantes: 3, generado_en: new Date().toISOString() };
+  });
+  const [isGeneratingPin, setIsGeneratingPin] = useState(false);
+
   // Atajo de teclado global Ctrl+K / Cmd+K para abrir el buscador de productos y tickets
   useEffect(() => {
     function handleGlobalKeyDown(e) {
@@ -377,7 +391,81 @@ function AppContent() {
   }, [activeStore?.id, activeStore?.metodos_pago]);
 
   const [products, setProducts] = useState(() => (isDemoMode ? SEED_PRODUCTS : []));
-  const [cart, setCart] = useState({});
+
+  // Sincronización del carrito en sessionStorage (vendia_cart_storeId)
+  const [cart, setCart] = useState(() => {
+    try {
+      const sId = activeStore?.id || localStorage.getItem('active_store_id') || 'demo';
+      const saved = sessionStorage.getItem(`vendia_cart_${sId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error al recuperar carrito de sessionStorage:', e);
+    }
+    return {};
+  });
+
+  const [isCartRestored, setIsCartRestored] = useState(() => {
+    try {
+      const sId = activeStore?.id || localStorage.getItem('active_store_id') || 'demo';
+      const saved = sessionStorage.getItem(`vendia_cart_${sId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Boolean(parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0);
+      }
+    } catch {
+      return false;
+    }
+    return false;
+  });
+
+  // Notificar al cajero con aviso si el carrito fue restaurado intacto
+  useEffect(() => {
+    if (isCartRestored) {
+      showToast("Carrito restaurado");
+    }
+  }, []);
+
+  // Sincronizar en sessionStorage (vendia_cart_storeId) ante cualquier cambio en el carrito
+  useEffect(() => {
+    const sId = activeStore?.id || localStorage.getItem('active_store_id') || 'demo';
+    const key = `vendia_cart_${sId}`;
+    try {
+      if (cart && typeof cart === 'object' && Object.keys(cart).length > 0) {
+        sessionStorage.setItem(key, JSON.stringify(cart));
+      } else {
+        sessionStorage.removeItem(key);
+      }
+    } catch (e) {
+      console.warn('Error al guardar carrito en sessionStorage:', e);
+    }
+  }, [cart, activeStore?.id]);
+
+  // Al cambiar de tienda activa, cargar su respectivo carrito de sessionStorage si existía
+  const prevStoreIdRef = useRef(activeStore?.id);
+  useEffect(() => {
+    if (activeStore?.id && activeStore.id !== prevStoreIdRef.current) {
+      prevStoreIdRef.current = activeStore.id;
+      try {
+        const saved = sessionStorage.getItem(`vendia_cart_${activeStore.id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+            setCart(parsed);
+            setIsCartRestored(true);
+            showToast("Carrito restaurado");
+            return;
+          }
+        }
+      } catch (e) {}
+      setCart({});
+      setIsCartRestored(false);
+    }
+  }, [activeStore?.id]);
   const [sales, setSales] = useState([]);
   const [movements, setMovements] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -436,11 +524,78 @@ function AppContent() {
         } catch (e) {
           console.warn('No se pudo cargar resumen RPC:', e);
         }
+
+        try {
+          const pinRes = await obtenerPinAnulacionRPC({ storeId: activeStore.id });
+          if (pinRes?.success) {
+            setStorePinData({
+              pin: pinRes.pin,
+              usos_restantes: pinRes.usos_restantes ?? 0,
+              generado_en: pinRes.generado_en
+            });
+          }
+        } catch (pinErr) {
+          console.warn('No se pudo cargar PIN de la tienda:', pinErr);
+        }
       }
     } catch (err) {
       console.error('Error al sincronizar datos de la tienda:', err);
     }
   }, [isDemoMode, activeStore?.id, primarySede?.id, role]);
+
+  const handleLoadStorePin = useCallback(async () => {
+    if (impersonatedStore) return;
+    const targetStoreId = activeStore?.id;
+    if (!isDemoMode && targetStoreId && role === 'dueno') {
+      try {
+        const res = await obtenerPinAnulacionRPC({ storeId: targetStoreId });
+        if (res?.success) {
+          setStorePinData({
+            pin: res.pin,
+            usos_restantes: res.usos_restantes ?? 0,
+            generado_en: res.generado_en
+          });
+        }
+      } catch (err) {
+        console.warn('No se pudo cargar PIN de la tienda:', err);
+      }
+    }
+  }, [isDemoMode, activeStore?.id, role, impersonatedStore]);
+
+  const handleGenerateNewStorePin = async () => {
+    setIsGeneratingPin(true);
+    try {
+      const targetStoreId = activeStore?.id;
+      if (!isDemoMode && targetStoreId) {
+        const res = await solicitarPinAnulacionRPC({ storeId: targetStoreId, force: true });
+        if (res?.success) {
+          setStorePinData({
+            pin: res.pin,
+            usos_restantes: res.usos_restantes ?? 3,
+            generado_en: new Date().toISOString()
+          });
+          showToast(`Nuevo PIN generado: ${res.pin} (3 usos disponibles)`);
+        }
+      } else {
+        const randomPin = String(Math.floor(100000 + Math.random() * 900000));
+        const newDemoPin = {
+          pin: randomPin,
+          usos_restantes: 3,
+          generado_en: new Date().toISOString()
+        };
+        setStorePinData(newDemoPin);
+        try {
+          localStorage.setItem('vendia_demo_pin_data', JSON.stringify(newDemoPin));
+        } catch (e) {}
+        showToast(`Nuevo PIN demo generado: ${randomPin} (3 usos)`);
+      }
+    } catch (err) {
+      console.error('Error al generar PIN de anulación:', err);
+      alert(err.message || 'Error al generar nuevo PIN');
+    } finally {
+      setIsGeneratingPin(false);
+    }
+  };
 
   useEffect(() => {
     if (!isDemoMode && activeStore?.id) {
@@ -743,8 +898,8 @@ function AppContent() {
     showToast("Venta cobrada con éxito");
   };
 
-  // Anulación y devolución de venta (restaura existencias al inventario)
-  const handleVoidSale = async (saleToVoid, reason = 'Devolución de cliente') => {
+  // Anulación y devolución de venta (restaura existencias al inventario con validación de PIN)
+  const handleVoidSale = async (saleToVoid, reason = 'Devolución de cliente', pin = null) => {
     if (impersonatedStore) {
       alert('Acción bloqueada: Estás en modo de solo lectura (Superadmin inspeccionando tienda).');
       return;
@@ -754,7 +909,49 @@ function AppContent() {
     const hora = new Date().toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
     const userDisplay = userName;
 
-    // 1. Reingresar stock en el cliente
+    // 1. En base de datos real, llamar a anularVentaRPC con el PIN ANTES de modificar el estado local
+    const targetSedeId = primarySede?.id || activeStore?.id;
+    if (!isDemoMode && targetSedeId) {
+      const rpcResult = await anularVentaRPC({
+        sedeId: targetSedeId,
+        ventaId: saleToVoid.id,
+        motivo: reason,
+        pin
+      });
+
+      // Si retornó usos restantes, actualizar el estado del PIN del dueño
+      if (rpcResult && typeof rpcResult.usos_restantes === 'number') {
+        setStorePinData((prev) => ({
+          ...prev,
+          usos_restantes: rpcResult.usos_restantes,
+          pin: rpcResult.usos_restantes <= 0 ? null : prev.pin
+        }));
+      }
+
+      await refreshStoreData();
+    } else {
+      // Modo Demo / local: Validar PIN si el usuario no es dueño
+      if (role !== 'dueno') {
+        if (!storePinData.pin || storePinData.usos_restantes <= 0) {
+          throw new Error('El PIN ha superado el límite de 3 usos o no está activo. Pídele al dueño generar uno nuevo.');
+        }
+        if (storePinData.pin !== String(pin).trim()) {
+          throw new Error('PIN incorrecto. Verifica el código de 6 dígitos con el dueño.');
+        }
+        const nuevosUsos = storePinData.usos_restantes - 1;
+        const updatedPinData = {
+          ...storePinData,
+          usos_restantes: nuevosUsos,
+          pin: nuevosUsos <= 0 ? null : storePinData.pin
+        };
+        setStorePinData(updatedPinData);
+        try {
+          localStorage.setItem('vendia_demo_pin_data', JSON.stringify(updatedPinData));
+        } catch (e) {}
+      }
+    }
+
+    // 2. Si la anulación fue autorizada por el backend / validación, actualizar existencias
     setProducts((prev) =>
       prev.map((p) => {
         const itemInSale = (saleToVoid.items || []).find((it) => String(it.producto_id) === String(p.id));
@@ -766,7 +963,7 @@ function AppContent() {
       })
     );
 
-    // 2. Registrar movimientos de devolución
+    // 3. Registrar movimientos de devolución
     const returnMovements = (saleToVoid.items || []).map((it) => ({
       id: Date.now() + Math.random(),
       hora,
@@ -779,7 +976,7 @@ function AppContent() {
     }));
     setMovements((prev) => [...prev, ...returnMovements]);
 
-    // 3. Marcar venta como anulada en el estado local
+    // 4. Marcar venta como anulada en el estado local
     setSales((prev) =>
       prev.map((s) =>
         String(s.id) === String(saleToVoid.id)
@@ -792,21 +989,6 @@ function AppContent() {
           : s
       )
     );
-
-    // 4. Si está en base de datos real, llamar a anularVentaRPC
-    const targetSedeId = primarySede?.id || activeStore?.id;
-    if (!isDemoMode && targetSedeId) {
-      try {
-        await anularVentaRPC({
-          sedeId: targetSedeId,
-          ventaId: saleToVoid.id,
-          motivo: reason
-        });
-        await refreshStoreData();
-      } catch (err) {
-        console.warn('Aviso al anular venta en backend:', err);
-      }
-    }
 
     // Actualizar modal activo si está abierto
     if (activeSaleModal && String(activeSaleModal.sale?.id) === String(saleToVoid.id)) {
@@ -2143,6 +2325,7 @@ function AppContent() {
                   paymentMethods={storePaymentMethods}
                   alertCount={unreadAlertCount}
                   onOpenAlerts={() => setIsAlertsOpen(true)}
+                  isCartRestored={isCartRestored}
                 />
               )}
 
@@ -2170,6 +2353,12 @@ function AppContent() {
                   paymentMethods={storePaymentMethods}
                   alertCount={unreadAlertCount}
                   onOpenAlerts={() => setIsAlertsOpen(true)}
+                  role={role}
+                  onOpenPinModal={() => {
+                    handleLoadStorePin();
+                    setIsPinModalOpen(true);
+                  }}
+                  pinUsosRestantes={storePinData?.usos_restantes}
                 />
               )}
 
@@ -2321,7 +2510,17 @@ function AppContent() {
         storeLogo={storeLogo}
         isReceipt={activeSaleModal?.isReceipt}
         onVoidSale={handleVoidSale}
-        canVoid={role === 'dueno' || isSuperadmin}
+        canVoid={true}
+        role={role}
+      />
+
+      {/* Modal de PIN Dinámico de Anulación (Exclusivo Dueño / Superadmin) */}
+      <PinAnulacionModal
+        isOpen={isPinModalOpen}
+        onClose={() => setIsPinModalOpen(false)}
+        pinData={storePinData}
+        onGenerateNewPin={handleGenerateNewStorePin}
+        loading={isGeneratingPin}
       />
 
 

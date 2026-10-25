@@ -249,7 +249,7 @@ export default function ResumenTab({
           >
             <IconTag size={18} />
           </div>
-          <b style={{ fontSize: '26px', lineHeight: 1.15, marginBottom: '6px', letterSpacing: '-0.02em', color: 'var(--onacc)' }}>
+          <b className="price-display" style={{ fontSize: '26px', lineHeight: 1.15, marginBottom: '6px', letterSpacing: '-0.02em', color: 'var(--onacc)' }}>
             {money(hoyTotal)}
           </b>
           <span style={{ fontSize: '12px', fontWeight: '500', opacity: 0.95, color: 'var(--onacc)' }}>
@@ -273,7 +273,7 @@ export default function ResumenTab({
           >
             <IconVender size={18} />
           </div>
-          <b style={{ fontSize: '26px', lineHeight: 1.15, marginBottom: '6px', letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+          <b className="price-display" style={{ fontSize: '26px', lineHeight: 1.15, marginBottom: '6px', letterSpacing: '-0.02em', color: 'var(--ink)' }}>
             {nVentas}
           </b>
           <span style={{ fontSize: '12px', color: 'var(--graphite)' }}>
@@ -297,7 +297,7 @@ export default function ResumenTab({
           >
             <IconReceipt size={18} />
           </div>
-          <b style={{ fontSize: '26px', lineHeight: 1.15, marginBottom: '6px', letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+          <b className="price-display" style={{ fontSize: '26px', lineHeight: 1.15, marginBottom: '6px', letterSpacing: '-0.02em', color: 'var(--ink)' }}>
             {money(ticketPromedio)}
           </b>
           <span style={{ fontSize: '12px', color: 'var(--graphite)' }}>
@@ -321,7 +321,7 @@ export default function ResumenTab({
           >
             <IconAlertTriangle size={18} />
           </div>
-          <b style={{ fontSize: '26px', lineHeight: 1.15, marginBottom: '6px', letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+          <b className="price-display" style={{ fontSize: '26px', lineHeight: 1.15, marginBottom: '6px', letterSpacing: '-0.02em', color: 'var(--ink)' }}>
             {lowStockCount}
           </b>
           <span style={{ fontSize: '12px', color: 'var(--graphite)' }}>
@@ -645,7 +645,7 @@ export default function ResumenTab({
                         />
                         <span style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--ink)' }}>{p.metodo}</span>
                       </div>
-                      <b style={{ fontSize: '14.5px', fontWeight: '700', color: 'var(--ink)' }}>{money(p.total)}</b>
+                      <b className="price-display" style={{ fontSize: '14.5px', fontWeight: '700', color: 'var(--ink)' }}>{money(p.total)}</b>
                     </div>
                     <div style={{ height: '7px', background: config.track, borderRadius: '99px', overflow: 'hidden' }}>
                       <div
@@ -777,7 +777,7 @@ export default function ResumenTab({
                           {p.nombre}
                         </span>
                       </div>
-                      <b style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--ink)' }}>
+                      <b className="price-display" style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--ink)' }}>
                         {p.unidades} {p.unidades === 1 ? 'ud.' : 'uds.'}
                       </b>
                     </div>

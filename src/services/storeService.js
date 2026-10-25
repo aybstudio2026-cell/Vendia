@@ -136,10 +136,36 @@ export async function registrarVentaRPC({
 }
 
 /**
+ * Solicitar o regenerar el PIN dinámico de anulación de 6 dígitos (máx 3 usos)
+ */
+export async function solicitarPinAnulacionRPC({ storeId, force = false }) {
+  if (!storeId) return null;
+  const { data, error } = await supabase.rpc('solicitar_pin_anulacion', {
+    p_tienda_id: storeId,
+    p_forzar: force
+  });
+  if (error) throw error;
+  return data; // { success, pin, usos_restantes, renovado }
+}
+
+/**
+ * Obtener el PIN activo y sus usos restantes (solo Dueño / Superadmin)
+ */
+export async function obtenerPinAnulacionRPC({ storeId }) {
+  if (!storeId) return null;
+  const { data, error } = await supabase.rpc('obtener_pin_anulacion_dueno', {
+    p_tienda_id: storeId
+  });
+  if (error) throw error;
+  return data; // { success, pin, usos_restantes, generado_en }
+}
+
+/**
  * Anular o devolver una venta vía RPC: anular_venta(...)
  * Restaura automáticamente el stock de los productos vendidos y genera los movimientos de inventario correspondientes.
+ * Si el usuario es empleado/cajero, exige el PIN dinámico de 6 dígitos del dueño (máx 3 usos).
  */
-export async function anularVentaRPC({ sedeId, ventaId, motivo = 'Anulación de venta' }) {
+export async function anularVentaRPC({ sedeId, ventaId, motivo = 'Anulación de venta', pin = null }) {
   // 1. Obtener la venta para conocer su sede_id y tienda_id reales
   let realSedeId = sedeId;
   let realTiendaId = null;
@@ -154,80 +180,20 @@ export async function anularVentaRPC({ sedeId, ventaId, motivo = 'Anulación de 
     if (vRow?.tienda_id) realTiendaId = vRow.tienda_id;
   } catch (e) {}
 
-  // 2. Intentar llamar al RPC anular_venta
-  try {
-    const payload = {
-      p_sede_id: realSedeId,
-      p_venta_id: ventaId,
-      p_motivo: motivo
-    };
-    const { data, error } = await supabase.rpc('anular_venta', payload);
-    if (!error && data) return data;
-    console.warn('RPC anular_venta avisó, usando fallback directo:', error?.message);
-  } catch (rpcErr) {
-    console.warn('RPC anular_venta excepción:', rpcErr);
+  // 2. Llamar al RPC anular_venta con validación estricta de PIN
+  const payload = {
+    p_sede_id: realSedeId,
+    p_venta_id: ventaId,
+    p_motivo: motivo,
+    p_pin: pin ? String(pin).trim() : null
+  };
+
+  const { data, error } = await supabase.rpc('anular_venta', payload);
+  if (error) {
+    throw new Error(error.message || 'Error al autorizar anulación de la venta');
   }
 
-  // 3. Fallback directo garantizado: actualizar estado de la venta
-  const { error: updErr } = await supabase
-    .from('ventas')
-    .update({
-      estado: 'anulada',
-      motivo_anulacion: motivo,
-      anulada_en: new Date().toISOString()
-    })
-    .eq('id', ventaId);
-
-  if (updErr) throw updErr;
-
-  // 4. Restaurar stock en inventario para cada ítem vendido
-  try {
-    const { data: items } = await supabase
-      .from('venta_items')
-      .select('producto_id, cantidad, tienda_id')
-      .eq('venta_id', ventaId);
-
-    if (items && items.length > 0) {
-      for (const it of items) {
-        const { data: invRow } = await supabase
-          .from('inventario')
-          .select('producto_id, stock_actual, cantidad, tienda_id')
-          .eq('producto_id', it.producto_id)
-          .limit(1)
-          .maybeSingle();
-
-        if (invRow) {
-          const qty = parseFloat(it.cantidad || 0);
-          const currentStock = parseFloat(invRow.stock_actual ?? invRow.cantidad ?? 0);
-          const restored = currentStock + qty;
-
-          await supabase
-            .from('inventario')
-            .update({
-              stock_actual: restored,
-              cantidad: restored,
-              actualizado_en: new Date().toISOString()
-            })
-            .eq('producto_id', it.producto_id);
-
-          await supabase
-            .from('movimientos_inventario')
-            .insert({
-              tienda_id: invRow.tienda_id || realTiendaId,
-              producto_id: it.producto_id,
-              tipo: 'ajuste',
-              tipo_movimiento: 'devolucion_cliente',
-              cantidad: qty,
-              nota: `Devolución venta: ${motivo}`
-            });
-        }
-      }
-    }
-  } catch (fallbackInvErr) {
-    console.warn('Aviso al restaurar existencias en fallback:', fallbackInvErr);
-  }
-
-  return { success: true, fallback: true };
+  return data;
 }
 
 /**
