@@ -10,3 +10,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+
+if (typeof window !== 'undefined') {
+  window.supabase = supabase;
+}
+

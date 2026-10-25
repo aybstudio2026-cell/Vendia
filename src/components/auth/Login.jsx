@@ -1,9 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import VendiaLogo from '../common/VendiaLogo';
-import { IconWhatsApp } from '../common/Icons';
+import { IconWhatsApp, IconEye, IconEyeOff, FlagIcon } from '../common/Icons';
 import Modal from '../common/Modal';
+
+// Configuración de intentos máximos y bloqueo temporal
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 45;
+
+// Configuración de países para selector dinámico y validación telefónica
+const COUNTRIES = [
+  { code: 'PE', name: 'Perú', dialCode: '+51', maxDigits: 9, placeholder: '987 654 321', regex: /^9\d{8}$/, errorMsg: 'El número de Perú debe tener 9 dígitos y empezar con 9 (ej: 987 654 321).' },
+  { code: 'CO', name: 'Colombia', dialCode: '+57', maxDigits: 10, placeholder: '300 123 4567', regex: /^\d{10}$/, errorMsg: 'El número de Colombia debe tener 10 dígitos.' },
+  { code: 'CL', name: 'Chile', dialCode: '+56', maxDigits: 9, placeholder: '9 1234 5678', regex: /^\d{9}$/, errorMsg: 'El número de Chile debe tener 9 dígitos.' },
+  { code: 'MX', name: 'México', dialCode: '+52', maxDigits: 10, placeholder: '55 1234 5678', regex: /^\d{10}$/, errorMsg: 'El número de México debe tener 10 dígitos.' },
+  { code: 'AR', name: 'Argentina', dialCode: '+54', maxDigits: 10, placeholder: '11 1234 5678', regex: /^\d{10}$/, errorMsg: 'El número de Argentina debe tener 10 dígitos.' },
+  { code: 'EC', name: 'Ecuador', dialCode: '+593', maxDigits: 9, placeholder: '99 123 4567', regex: /^\d{9}$/, errorMsg: 'El número de Ecuador debe tener 9 dígitos.' },
+  { code: 'BO', name: 'Bolivia', dialCode: '+591', maxDigits: 8, placeholder: '70 123 456', regex: /^\d{8}$/, errorMsg: 'El número de Bolivia debe tener 8 dígitos.' },
+  { code: 'ES', name: 'España', dialCode: '+34', maxDigits: 9, placeholder: '612 345 678', regex: /^\d{9}$/, errorMsg: 'El número de España debe tener 9 dígitos.' },
+  { code: 'US', name: 'EE.UU.', dialCode: '+1', maxDigits: 10, placeholder: '202 555 0123', regex: /^\d{10}$/, errorMsg: 'El número de EE.UU. debe tener 10 dígitos.' }
+];
+
+// Formateo visual reactivo según el país (para Perú aplica máscara 987 654 321)
+function formatPhoneByCountry(rawVal, country) {
+  const digits = (rawVal || '').replace(/\D/g, '').slice(0, country.maxDigits || 9);
+  if (country.code === 'PE') {
+    // Máscara 987 654 321
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  }
+  if (country.code === 'CL') {
+    if (digits.length <= 1) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
+    return `${digits.slice(0, 1)} ${digits.slice(1, 5)} ${digits.slice(5)}`;
+  }
+  if (country.code === 'CO' || country.code === 'US') {
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  }
+  if (country.code === 'MX' || country.code === 'AR') {
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+    return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6)}`;
+  }
+  if (country.code === 'EC') {
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+    return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+  }
+  if (country.code === 'BO') {
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+    return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+  }
+  return digits.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+}
 
 export default function Login() {
   const { signInWithPassword, resetPassword, triggerLoginSplash } = useAuth();
@@ -11,14 +65,95 @@ export default function Login() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [selectedCountryCode, setSelectedCountryCode] = useState('PE');
+  const [isCountryOpen, setIsCountryOpen] = useState(false);
+  const countryDropdownRef = useRef(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Contador de intentos fallidos y temporizador regresivo de bloqueo
+  const [failedAttempts, setFailedAttempts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vendia_login_attempts');
+      return saved ? parseInt(saved, 10) : 0;
+    } catch (_) {
+      return 0;
+    }
+  });
+
+  const [lockoutTimeLeft, setLockoutTimeLeft] = useState(() => {
+    try {
+      const lockoutUntil = localStorage.getItem('vendia_login_lockout_until');
+      if (lockoutUntil) {
+        const remaining = Math.ceil((parseInt(lockoutUntil, 10) - Date.now()) / 1000);
+        return remaining > 0 ? remaining : 0;
+      }
+    } catch (_) { }
+    return 0;
+  });
+
+  // Ticker del temporizador regresivo
+  useEffect(() => {
+    if (lockoutTimeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          try {
+            localStorage.removeItem('vendia_login_lockout_until');
+            localStorage.removeItem('vendia_login_attempts');
+          } catch (_) { }
+          setFailedAttempts(0);
+          setErrorMsg('');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutTimeLeft]);
+
+  // Cierre automático del selector de país al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
+        setIsCountryOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedCountry = COUNTRIES.find((c) => c.code === selectedCountryCode) || COUNTRIES[0];
+
+  // Validación de requisitos de contraseña
+  const hasMinLen = password.length >= 8;
+  const hasNumber = /\d/.test(password);
+  const hasUpper = /[A-Z]/.test(password);
+
+  const passedReqs = (hasMinLen ? 1 : 0) + (hasNumber ? 1 : 0) + (hasUpper ? 1 : 0);
+  let strengthLabel = 'Débil';
+  let strengthColor = '#ef4444';
+  let strengthPct = 33;
+
+  if (passedReqs === 2) {
+    strengthLabel = 'Media';
+    strengthColor = '#f59e0b';
+    strengthPct = 66;
+  } else if (passedReqs === 3) {
+    strengthLabel = 'Segura';
+    strengthColor = '#10b981';
+    strengthPct = 100;
+  }
+
   useEffect(() => {
     document.title = mode === 'login' ? 'Vendia | Login' : 'Vendia | Registro';
+    setIsCountryOpen(false);
   }, [mode]);
 
   // Modal de recuperación de contraseña
@@ -30,19 +165,65 @@ export default function Login() {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    // Si está bloqueado temporalmente, impedir el intento
+    if (mode === 'login' && lockoutTimeLeft > 0) {
+      setErrorMsg(`Demasiados intentos fallidos. Espera ${lockoutTimeLeft} segundos...`);
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (mode === 'login') {
-        await signInWithPassword(email.trim(), password);
+        try {
+          await signInWithPassword(email.trim(), password);
+          // Éxito: restablecer intentos fallidos y desbloquear
+          try {
+            localStorage.removeItem('vendia_login_attempts');
+            localStorage.removeItem('vendia_login_lockout_until');
+          } catch (_) { }
+          setFailedAttempts(0);
+          setLockoutTimeLeft(0);
+        } catch (loginErr) {
+          const nextAttempts = failedAttempts + 1;
+          setFailedAttempts(nextAttempts);
+          try {
+            localStorage.setItem('vendia_login_attempts', nextAttempts.toString());
+          } catch (_) { }
+
+          if (nextAttempts >= MAX_FAILED_ATTEMPTS) {
+            const lockoutUntil = Date.now() + LOCKOUT_SECONDS * 1000;
+            try {
+              localStorage.setItem('vendia_login_lockout_until', lockoutUntil.toString());
+            } catch (_) { }
+            setLockoutTimeLeft(LOCKOUT_SECONDS);
+            throw new Error(`Demasiados intentos fallidos. Espera ${LOCKOUT_SECONDS} segundos...`);
+          } else {
+            const remaining = MAX_FAILED_ATTEMPTS - nextAttempts;
+            throw new Error(`Correo o contraseña incorrectos. Intentos restantes antes del bloqueo: ${remaining}`);
+          }
+        }
       } else {
         // Modo Registro (Sign Up)
         const cleanNombre = nombre.trim() || email.split('@')[0];
-        const cleanTelefono = telefono.trim();
+        const cleanPhoneDigits = telefono.replace(/\D/g, '');
 
-        if (cleanTelefono && cleanTelefono.replace(/\D/g, '').length < 8) {
-          throw new Error('Por favor ingresa un número de teléfono o WhatsApp válido (mínimo 8 dígitos).');
+        // Validación regex estricta según país (para Perú: ^9\d{8}$)
+        if (selectedCountry.code === 'PE') {
+          if (!/^9\d{8}$/.test(cleanPhoneDigits)) {
+            throw new Error('El número en Perú debe tener 9 dígitos y empezar con 9 (ej: 987 654 321).');
+          }
+        } else if (selectedCountry.regex && !selectedCountry.regex.test(cleanPhoneDigits)) {
+          throw new Error(selectedCountry.errorMsg);
         }
+
+        // Validación estricta de fortaleza de contraseña: mínimo 8 caracteres, al menos un número y una mayúscula
+        if (!hasMinLen || !hasNumber || !hasUpper) {
+          throw new Error('La contraseña debe cumplir con todos los requisitos de seguridad: mínimo 8 caracteres, al menos un número y una letra mayúscula.');
+        }
+
+        const fullPhoneFormatted = `${selectedCountry.dialCode} ${telefono.trim()}`;
 
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -50,7 +231,7 @@ export default function Login() {
           options: {
             data: {
               nombre: cleanNombre,
-              telefono: cleanTelefono
+              telefono: fullPhoneFormatted
             }
           }
         });
@@ -59,9 +240,9 @@ export default function Login() {
 
         // Persistir teléfono en caché local asociado al correo
         try {
-          if (cleanTelefono) {
-            localStorage.setItem(`user_phone_${email.trim().toLowerCase()}`, cleanTelefono);
-            localStorage.setItem('vendia_user_phone', cleanTelefono);
+          if (fullPhoneFormatted) {
+            localStorage.setItem(`user_phone_${email.trim().toLowerCase()}`, fullPhoneFormatted);
+            localStorage.setItem('vendia_user_phone', fullPhoneFormatted);
           }
         } catch (_) { }
 
@@ -326,22 +507,46 @@ export default function Login() {
           </button>
         </div>
 
-        {/* MENSAJES DE ERROR / ÉXITO */}
-        {errorMsg && (
+        {/* MENSAJES DE ERROR / BLOQUEO / ÉXITO */}
+        {mode === 'login' && lockoutTimeLeft > 0 ? (
           <div
             style={{
-              padding: '10px 14px',
+              padding: '12px 14px',
               borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.16)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
+              background: 'rgba(239, 68, 68, 0.2)',
+              border: '1px solid rgba(239, 68, 68, 0.45)',
               color: '#fca5a5',
               fontSize: '12px',
-              lineHeight: 1.4,
-              marginBottom: '18px'
+              lineHeight: 1.45,
+              marginBottom: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
             }}
           >
-            {errorMsg}
+            <span style={{ fontSize: '18px', flexShrink: 0 }}>⏳</span>
+            <div>
+              <strong style={{ color: '#ffffff', display: 'block' }}>Demasiados intentos fallidos</strong>
+              Por seguridad, espera <strong style={{ color: '#38bdf8' }}>{lockoutTimeLeft} segundos</strong> antes de volver a intentar.
+            </div>
           </div>
+        ) : (
+          errorMsg && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                background: 'rgba(239, 68, 68, 0.16)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                color: '#fca5a5',
+                fontSize: '12px',
+                lineHeight: 1.4,
+                marginBottom: '18px'
+              }}
+            >
+              {errorMsg}
+            </div>
+          )
         )}
 
         {successMsg && (
@@ -392,30 +597,108 @@ export default function Login() {
                   <IconWhatsApp size={13} color="#25D366" />
                   Número de WhatsApp / Teléfono:
                 </span>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span
-                    style={{
-                      background: 'rgba(15, 23, 42, 0.7)',
-                      border: '1px solid rgba(148, 163, 184, 0.25)',
-                      borderRadius: '8px',
-                      padding: '0 10px',
-                      height: '38px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      fontSize: '11.5px',
-                      fontWeight: 600,
-                      color: '#94a3b8',
-                      userSelect: 'none'
-                    }}
-                  >
-                    🇵🇪 +51
-                  </span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {/* Selector Dinámico de País con Banderas SVG Reales */}
+                  <div ref={countryDropdownRef} style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsCountryOpen(!isCountryOpen)}
+                      disabled={loading}
+                      style={{
+                        height: '38px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '7px',
+                        background: 'rgba(15, 23, 42, 0.7)',
+                        border: '1px solid rgba(148, 163, 184, 0.25)',
+                        borderRadius: '8px',
+                        padding: '0 10px',
+                        cursor: 'pointer',
+                        color: '#cbd5e1',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        outline: 'none',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <FlagIcon code={selectedCountry.code} width={20} height={14} />
+                      <span>{selectedCountry.dialCode}</span>
+                      <span
+                        style={{
+                          fontSize: '8px',
+                          color: '#94a3b8',
+                          transform: isCountryOpen ? 'rotate(180deg)' : 'none',
+                          transition: 'transform 0.15s ease'
+                        }}
+                      >
+                        ▼
+                      </span>
+                    </button>
+
+                    {isCountryOpen && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 5px)',
+                          left: 0,
+                          zIndex: 50,
+                          width: '230px',
+                          maxHeight: '230px',
+                          overflowY: 'auto',
+                          background: '#0d1527',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          borderRadius: '10px',
+                          boxShadow: '0 15px 35px rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 229, 255, 0.1)',
+                          padding: '5px'
+                        }}
+                      >
+                        {COUNTRIES.map((c) => (
+                          <div
+                            key={c.code}
+                            onClick={() => {
+                              setSelectedCountryCode(c.code);
+                              setTelefono(formatPhoneByCountry(telefono, c));
+                              setIsCountryOpen(false);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '9px',
+                              padding: '7px 9px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              background: c.code === selectedCountryCode ? 'rgba(0, 229, 255, 0.16)' : 'transparent',
+                              color: c.code === selectedCountryCode ? '#38bdf8' : '#e2e8f0',
+                              fontSize: '12px',
+                              transition: 'background 0.12s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (c.code !== selectedCountryCode) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (c.code !== selectedCountryCode) e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            <FlagIcon code={c.code} width={20} height={14} />
+                            <span style={{ flex: 1, fontWeight: c.code === selectedCountryCode ? 600 : 400 }}>
+                              {c.name}
+                            </span>
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}>
+                              {c.dialCode}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Input con máscara visual reactiva */}
                   <input
                     type="tel"
                     required
-                    placeholder="Ej: 987 654 321"
+                    placeholder={`Ej: ${selectedCountry.placeholder}`}
                     value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
+                    onChange={(e) => setTelefono(formatPhoneByCountry(e.target.value, selectedCountry))}
                     disabled={loading}
                     className="login-dark-input"
                     style={{
@@ -425,12 +708,15 @@ export default function Login() {
                       borderRadius: '8px',
                       background: 'rgba(15, 23, 42, 0.7)',
                       border: '1px solid rgba(148, 163, 184, 0.25)',
-                      color: '#ffffff'
+                      color: '#ffffff',
+                      letterSpacing: '0.4px'
                     }}
                   />
                 </div>
                 <small style={{ color: '#94a3b8', fontSize: '10px', marginTop: '3px', display: 'block' }}>
-                  Te avisaremos directamente por WhatsApp para activar y coordinar tu comercio.
+                  {selectedCountry.code === 'PE'
+                    ? 'Formato Perú: 9 dígitos comenzando con 9 (ej: 987 654 321).'
+                    : `País seleccionado: ${selectedCountry.name} (${selectedCountry.dialCode}).`}
                 </small>
               </label>
             </>
@@ -446,7 +732,7 @@ export default function Login() {
               placeholder="tu@correo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
+              disabled={loading || (mode === 'login' && lockoutTimeLeft > 0)}
               className="login-dark-input"
               style={{
                 fontSize: '12.5px',
@@ -463,24 +749,113 @@ export default function Login() {
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#cbd5e1', marginBottom: '4px' }}>
               Contraseña:
             </span>
-            <input
-              type="password"
-              required
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              className="login-dark-input"
-              style={{
-                fontSize: '12.5px',
-                minHeight: '38px',
-                borderRadius: '8px',
-                background: 'rgba(15, 23, 42, 0.7)',
-                border: '1px solid rgba(148, 163, 184, 0.25)',
-                color: '#ffffff'
-              }}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading || (mode === 'login' && lockoutTimeLeft > 0)}
+                className="login-dark-input"
+                style={{
+                  width: '100%',
+                  fontSize: '12.5px',
+                  minHeight: '38px',
+                  borderRadius: '8px',
+                  background: 'rgba(15, 23, 42, 0.7)',
+                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                  color: '#ffffff',
+                  paddingRight: '38px'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                tabIndex={-1}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: showPassword ? '#38bdf8' : '#94a3b8',
+                  transition: 'color 0.15s ease'
+                }}
+              >
+                {showPassword ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+              </button>
+            </div>
           </label>
+
+          {/* BARRA REACTIVA DE FORTALEZA DE CONTRASEÑA (MODO REGISTRO) */}
+          {mode === 'signup' && password.length > 0 && (
+            <div
+              style={{
+                marginTop: '-4px',
+                padding: '10px 12px',
+                background: 'rgba(15, 23, 42, 0.6)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.08)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Fortaleza:</span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: strengthColor,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  {strengthLabel}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  height: '4px',
+                  width: '100%',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '2px',
+                  overflow: 'hidden',
+                  marginBottom: '8px'
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${strengthPct}%`,
+                    background: strengthColor,
+                    borderRadius: '2px',
+                    transition: 'width 0.3s ease, background-color 0.3s ease'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', color: hasMinLen ? '#4ade80' : '#64748b' }}>
+                  <span>{hasMinLen ? '✓' : '○'}</span>
+                  <span>Mínimo 8 caracteres</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', color: hasUpper ? '#4ade80' : '#64748b' }}>
+                  <span>{hasUpper ? '✓' : '○'}</span>
+                  <span>Al menos una letra mayúscula (A-Z)</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', color: hasNumber ? '#4ade80' : '#64748b' }}>
+                  <span>{hasNumber ? '✓' : '○'}</span>
+                  <span>Al menos un número (0-9)</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {mode === 'login' && (
             <div style={{ textAlign: 'right', marginTop: '-4px' }}>
@@ -508,19 +883,23 @@ export default function Login() {
               minHeight: '40px',
               fontSize: '12.5px',
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #00C853 0%, #00B0FF 100%)',
-              color: '#ffffff',
-              border: 'none',
+              background: mode === 'login' && lockoutTimeLeft > 0
+                ? 'rgba(71, 85, 105, 0.4)'
+                : 'linear-gradient(135deg, #00C853 0%, #00B0FF 100%)',
+              color: mode === 'login' && lockoutTimeLeft > 0 ? '#94a3b8' : '#ffffff',
+              border: mode === 'login' && lockoutTimeLeft > 0 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
               borderRadius: '10px',
-              boxShadow: '0 4px 14px rgba(0, 200, 83, 0.35)',
-              cursor: loading ? 'not-allowed' : 'pointer'
+              boxShadow: mode === 'login' && lockoutTimeLeft > 0 ? 'none' : '0 4px 14px rgba(0, 200, 83, 0.35)',
+              cursor: loading || (mode === 'login' && lockoutTimeLeft > 0) ? 'not-allowed' : 'pointer'
             }}
-            disabled={loading}
+            disabled={loading || (mode === 'login' && lockoutTimeLeft > 0)}
           >
             {loading
               ? 'Verificando...'
               : mode === 'login'
-                ? 'Iniciar sesión'
+                ? lockoutTimeLeft > 0
+                  ? `Bloqueado temporalmente (${lockoutTimeLeft}s)`
+                  : 'Iniciar sesión'
                 : 'Crear cuenta de comercio'}
           </button>
         </form>

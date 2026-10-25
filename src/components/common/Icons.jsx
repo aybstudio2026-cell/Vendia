@@ -443,5 +443,119 @@ export function IconSearch({ size = 18, color = "currentColor", ...props }) {
   );
 }
 
+export function IconEyeOff({ size = 18, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+// Banderas vectoriales en SVG (resuelve problema de emojis que en Windows se muestran como texto PE o CO)
+export function FlagIcon({ code, width = 20, height = 14, style = {} }) {
+  const commonStyle = {
+    width: `${width}px`,
+    height: `${height}px`,
+    borderRadius: '2px',
+    overflow: 'hidden',
+    boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.22)',
+    display: 'inline-block',
+    verticalAlign: 'middle',
+    flexShrink: 0,
+    ...style
+  };
+
+  switch (code) {
+    case 'PE':
+      return (
+        <svg viewBox="0 0 24 16" style={commonStyle}>
+          <rect width="8" height="16" fill="#D91023" />
+          <rect x="8" width="8" height="16" fill="#FFFFFF" />
+          <rect x="16" width="8" height="16" fill="#D91023" />
+        </svg>
+      );
+    case 'CO':
+      return (
+        <svg viewBox="0 0 24 16" style={commonStyle}>
+          <rect width="24" height="8" fill="#FCD116" />
+          <rect y="8" width="24" height="4" fill="#003893" />
+          <rect y="12" width="24" height="4" fill="#CE1126" />
+        </svg>
+      );
+    case 'CL':
+      return (
+        <svg viewBox="0 0 24 16" style={commonStyle}>
+          <rect y="8" width="24" height="8" fill="#D52B1E" />
+          <rect width="24" height="8" fill="#FFFFFF" />
+          <rect width="8" height="8" fill="#0039A6" />
+          <polygon points="4,1.8 4.7,3.9 6.9,3.9 5.1,5.2 5.8,7.3 4,6 2.2,7.3 2.9,5.2 1.1,3.9 3.3,3.9" fill="#FFFFFF" />
+        </svg>
+      );
+    case 'MX':
+      return (
+        <svg viewBox="0 0 24 16" style={commonStyle}>
+          <rect width="8" height="16" fill="#006847" />
+          <rect x="8" width="8" height="16" fill="#FFFFFF" />
+          <rect x="16" width="8" height="16" fill="#CE1126" />
+          <circle cx="12" cy="8" r="1.8" fill="#B38E5D" />
+        </svg>
+      );
+    case 'AR':
+      return (
+        <svg viewBox="0 0 24 16" style={commonStyle}>
+          <rect width="24" height="5.33" fill="#75AADB" />
+          <rect y="5.33" width="24" height="5.33" fill="#FFFFFF" />
+          <rect y="10.66" width="24" height="5.34" fill="#75AADB" />
+          <circle cx="12" cy="8" r="1.6" fill="#F6B40E" />
+        </svg>
+      );
+    case 'EC':
+      return (
+        <svg viewBox="0 0 24 16" style={commonStyle}>
+          <rect width="24" height="8" fill="#FFDD00" />
+          <rect y="8" width="24" height="4" fill="#034EA2" />
+          <rect y="12" width="24" height="4" fill="#ED1C24" />
+          <circle cx="12" cy="8" r="1.4" fill="#B38E5D" />
+        </svg>
+      );
+    case 'BO':
+      return (
+        <svg viewBox="0 0 24 16" style={commonStyle}>
+          <rect width="24" height="5.33" fill="#D52B1E" />
+          <rect y="5.33" width="24" height="5.33" fill="#F8E300" />
+          <rect y="10.66" width="24" height="5.34" fill="#007934" />
+        </svg>
+      );
+    case 'ES':
+      return (
+        <svg viewBox="0 0 24 16" style={commonStyle}>
+          <rect width="24" height="4" fill="#AA151B" />
+          <rect y="4" width="24" height="8" fill="#F1BF00" />
+          <rect y="12" width="24" height="4" fill="#AA151B" />
+          <rect x="4.5" y="6" width="2" height="4" rx="0.5" fill="#AA151B" />
+        </svg>
+      );
+    case 'US':
+      return (
+        <svg viewBox="0 0 24 16" style={commonStyle}>
+          <rect width="24" height="16" fill="#B22234" />
+          <rect y="2.46" width="24" height="2.46" fill="#FFFFFF" />
+          <rect y="7.38" width="24" height="2.46" fill="#FFFFFF" />
+          <rect y="12.3" width="24" height="2.46" fill="#FFFFFF" />
+          <rect width="9.6" height="8.6" fill="#3C3B6E" />
+        </svg>
+      );
+    default:
+      return (
+        <div style={{ ...commonStyle, background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', color: '#fff' }}>
+          {code}
+        </div>
+      );
+  }
+}
+
+
+
 
 

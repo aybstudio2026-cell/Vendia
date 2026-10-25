@@ -48,7 +48,15 @@ export function AuthProvider({ children }) {
       if (perfilError && perfilError.code !== 'PGRST116') {
         console.error('Error al cargar perfil:', perfilError);
       }
-      setProfile(perfilData || null);
+
+      // La bandera es_superadmin se lee prioritariamente desde los app_metadata del JWT (gestionados solo con service_role_key)
+      const isSuperadminFromAppMetadata = Boolean(
+        currentUser?.app_metadata?.es_superadmin === true ||
+        currentUser?.app_metadata?.role === 'superadmin' ||
+        perfilData?.es_superadmin
+      );
+
+      setProfile(perfilData ? { ...perfilData, es_superadmin: isSuperadminFromAppMetadata } : null);
 
       // 2. Obtener todas las membresías activas del usuario (para permitir selector multitienda)
       let targetStoreId = null;
@@ -117,57 +125,37 @@ export function AuthProvider({ children }) {
         }));
       }
 
-      // Si no tiene membresías directas, intentar buscar si está registrado como dueño en contratos
+      // Si no tiene membresías directas, invocar la función de base de datos con SECURITY DEFINER
+      // para vincular contratos existentes de forma segura sin exponer tablas ni inserciones directas
       if (availableStores.length === 0 && currentUser.email) {
         try {
-          const { data: contratos } = await supabase
-            .from('contratos')
-            .select(`
-              tienda_id,
-              tiendas (
-                id,
-                nombre,
-                logo_url,
-                paleta,
-                paleta_custom
-              )
-            `)
-            .ilike('dueno_email', currentUser.email.trim());
+          const { data: linkedStores, error: rpcErr } = await supabase.rpc('vincular_usuario_contratos', {
+            p_usuario_id: currentUser.id,
+            p_email: currentUser.email.trim()
+          });
 
-          if (contratos && contratos.length > 0) {
-            for (const c of contratos) {
-              if (c.tiendas) {
+          if (!rpcErr && linkedStores && linkedStores.length > 0) {
+            linkedStores.forEach((st) => {
+              if (st && st.tienda_id) {
                 availableStores.push({
-                  id: c.tienda_id,
-                  nombre: c.tiendas.nombre || 'Mi Tienda',
-                  rol: 'dueno',
-                  membership: { id: `auto-${c.tienda_id}`, rol: 'dueno', tienda_id: c.tienda_id },
-                  logo_url: c.tiendas.logo_url,
-                  paleta: c.tiendas.paleta,
-                  paleta_custom: c.tiendas.paleta_custom
+                  id: st.tienda_id,
+                  nombre: st.nombre || 'Mi Tienda',
+                  rol: st.rol || 'dueno',
+                  membership: { id: `auto-${st.tienda_id}`, rol: st.rol || 'dueno', tienda_id: st.tienda_id },
+                  logo_url: st.logo_url,
+                  paleta: st.paleta,
+                  paleta_custom: st.paleta_custom
                 });
-                // Autovincular en la tabla miembros en segundo plano
-                supabase
-                  .from('miembros')
-                  .insert({
-                    usuario_id: currentUser.id,
-                    tienda_id: c.tienda_id,
-                    rol: 'dueno',
-                    activo: true
-                  })
-                  .then(({ error: linkErr }) => {
-                    if (linkErr) console.warn('Aviso al autovincular miembro en BD:', linkErr.message);
-                  });
               }
-            }
+            });
           }
         } catch (contractErr) {
-          console.warn('Aviso al buscar contratos por correo:', contractErr);
+          console.warn('Aviso al invocar función segura de vinculación de contratos en BD:', contractErr);
         }
       }
 
-      // Si es superadmin, listar las tiendas globales para permitir gestionarlas
-      if (perfilData?.es_superadmin) {
+      // Si es superadmin (verificado en app_metadata del JWT), listar las tiendas globales para permitir gestionarlas
+      if (isSuperadminFromAppMetadata) {
         try {
           const { data: allStores, error: allErr } = await supabase
             .from('tiendas')
@@ -454,9 +442,14 @@ export function AuthProvider({ children }) {
     : userStores;
 
   // Si el usuario es Superadmin o tiene membresía de dueño, su rol efectivo en la tienda es 'dueno'
+  // La condición de superadmin se valida prioritariamente desde los app_metadata del JWT
   const isSuperadmin = isDemoMode
     ? demoRole === 'superadmin'
-    : Boolean(profile?.es_superadmin);
+    : Boolean(
+        user?.app_metadata?.es_superadmin === true ||
+        user?.app_metadata?.role === 'superadmin' ||
+        profile?.es_superadmin
+      );
 
   const storeRole = isDemoMode
     ? (demoRole === 'empleado' ? 'empleado' : 'dueno')
